@@ -1,0 +1,2 @@
+After download do -chmod 755 scan .required .sslstrip
+Delete this file after doing so
