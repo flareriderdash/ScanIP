@@ -1,7 +1,7 @@
 # ScanIP
 NOTE: THIS PROGRAM USES THE APT OR APT-GET PACKAGE MANAGER TO GATHER PROPER ADDITIONS DESIGNED FOR DEBIAN BASED SYSTEMS
 
-NOTE: CODED IN BASH
+NOTE: CODED IN BASH;    BEFORE FIRST RUN TYPE 'chmod 755 scan .required .sslstrip' IN THE SCANIP DIRECTORY
 
   This program creates a file of active ip addresses from pinging all possible ip adresses in a 2-255 ip range with a dynamic router ip.
 This program takes the file of the 'pinged' ip addresses and puts it through a loop until all ips are read and placed into a network wide arpspoof
