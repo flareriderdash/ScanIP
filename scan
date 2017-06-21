@@ -1,4 +1,5 @@
 #!/bin/bash
+ln -T scan /usr/sbin/scanip
 
 ./.required
 clear
